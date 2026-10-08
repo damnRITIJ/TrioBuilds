@@ -1,10 +1,14 @@
 {
-  "timestamp": "2026-10-08T12:26:55.228930+00:00",
-  "risk_level": "Low",
-  "upwind_clusters": [],
-  "all_clusters": [],
+  "timestamp": "2026-10-08T10:00:00Z",
+  "risk_level": "High",
+  "all_clusters": [
+    { "lat": 29.5, "lon": 75.4, "total_frp": 120.0, "wind_speed_kmh": 22, "wind_direction_deg": 330, "distance_km": 190.5, "is_upwind": true, "arrival_hrs": 8.6 },
+    { "lat": 29.0, "lon": 76.5, "total_frp": 55.0, "wind_speed_kmh": 25, "wind_direction_deg": 300, "distance_km": 80.2, "is_upwind": true, "arrival_hrs": 3.2 },
+    { "lat": 28.9, "lon": 76.8, "total_frp": 88.0, "wind_speed_kmh": 20, "wind_direction_deg": 285, "distance_km": 50.1, "is_upwind": true, "arrival_hrs": 2.5 },
+    { "lat": 30.2, "lon": 74.5, "total_frp": 85.3, "wind_speed_kmh": 18, "wind_direction_deg": 45, "distance_km": 310.0, "is_upwind": false, "arrival_hrs": null }
+  ],
   "advisory": {
-    "en": "No active fires detected.",
-    "hi": "\u0915\u094b\u0908 \u0938\u0915\u094d\u0930\u093f\u092f \u0906\u0917 \u0928\u0939\u0940\u0902 \u092a\u093e\u0908 \u0917\u0908\u0964"
+    "en": "Risk level is High. 3 fire clusters detected upwind of Delhi. Estimated smoke arrival in 2.5 hours. Authorities should prepare for air quality deterioration.",
+    "hi": "जोखिम स्तर: High। दिल्ली की ओर 3 अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: 2.5 घंटे। अधिकारियों को वायु गुणवत्ता बिगड़ने की तैयारी करनी चाहिए।"
   }
 }

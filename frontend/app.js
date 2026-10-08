@@ -7,11 +7,11 @@
 // ── Config ────────────────────────────────────────────────────────────────────
 const CONFIG = {
   // Replace with your actual S3 static site URL after deployment
-  snapshotUrl: "https://YOUR-BUCKET.s3.amazonaws.com/snapshot.json",
+  snapshotUrl: "https://triobuilds2.s3.ap-southeast-2.amazonaws.com/snapshot.json",
 
-  // Set to a local/saved path to enable replay mode for demos
-  // e.g. "./assets/replay_snapshot.json"
-  replayUrl: null,
+  //ONLY USE snapshot.json FOR DEMO/LOCALHOST, LEAVE EMPTY WHEN DEPLOYED
+  //   replayUrl: "../snapshot.json",    
+  replayUrl: "",
 
   delhi: { lat: 28.6139, lon: 77.2090 },
   mapCenter: [29.5, 75.5],
