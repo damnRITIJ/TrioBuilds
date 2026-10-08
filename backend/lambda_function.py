@@ -12,6 +12,12 @@ import logging
 from datetime import datetime, timezone
 
 import requests
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    load_dotenv(dotenv_path=env_path, override=True)
+except ImportError:
+    pass
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logger = logging.getLogger()
@@ -25,11 +31,11 @@ UPWIND_TOLERANCE_DEG = 30       # ±30° cone toward Delhi counts as "upwind"
 RISK_HIGH_FRP = 500             # Cumulative FRP threshold for High risk
 RISK_MODERATE_FRP = 150         # Cumulative FRP threshold for Moderate risk
 
-# ── Environment variables (set in Lambda console / SAM template) ───────────────
-FIRMS_MAP_KEY = os.environ.get("FIRMS_MAP_KEY", "DEMO_KEY")
-S3_BUCKET = os.environ.get("S3_BUCKET", "stubble-warning-bucket")
-SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+# ── Environment variables (set in Lambda console / SAM template / .env) ────────
+FIRMS_MAP_KEY = os.environ.get("FIRMS_MAP_KEY")
+S3_BUCKET = os.environ.get("S3_BUCKET")
+SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN")
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -348,3 +354,7 @@ def lambda_handler(event, context):
 
     logger.info("Pipeline complete")
     return {"statusCode": 200, "body": f"Risk: {risk}"}
+
+if __name__ == "__main__":
+    # Provides an easy way to run and test the script locally!
+    lambda_handler({}, None)

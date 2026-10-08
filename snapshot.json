@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-10-08T12:26:55.228930+00:00",
+  "risk_level": "Low",
+  "upwind_clusters": [],
+  "all_clusters": [],
+  "advisory": {
+    "en": "No active fires detected.",
+    "hi": "\u0915\u094b\u0908 \u0938\u0915\u094d\u0930\u093f\u092f \u0906\u0917 \u0928\u0939\u0940\u0902 \u092a\u093e\u0908 \u0917\u0908\u0964"
+  }
+}
