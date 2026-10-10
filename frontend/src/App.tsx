@@ -18,7 +18,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 })
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:3000/score"
+const API_URL = import.meta.env.DEV 
+  ? "http://127.0.0.1:3000/score" 
+  : "https://j80bcy6nwf.execute-api.ap-southeast-2.amazonaws.com/Prod/score"
 
 function MapClickHandler({ setTarget }: { setTarget: (target: any) => void }) {
   useMapEvents({

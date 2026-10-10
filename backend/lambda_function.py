@@ -168,16 +168,20 @@ def bearing_to_target(lat: float, lon: float, target_lat: float, target_lon: flo
     return (bearing + 360) % 360
 
 
-def is_upwind(wind_direction_deg: float, bearing_deg: float, tolerance: float = UPWIND_TOLERANCE_DEG) -> bool:
+def is_upwind(wind_direction_deg: float, bearing_deg: float, dist: float) -> bool:
     """
     The FIRMS/Open-Meteo wind direction is the direction the wind comes FROM.
     Adding 180° gives the direction it is GOING (i.e. where smoke travels).
-    Return True if smoke is heading toward Delhi within `tolerance` degrees.
+    Return True if smoke is heading toward the target.
+    Tolerance tightens as distance increases to avoid massive wide cones at long ranges.
     """
     smoke_heading = (wind_direction_deg + 180) % 360
     diff = abs(smoke_heading - bearing_deg) % 360
     if diff > 180:
         diff = 360 - diff
+        
+    # Dynamic tolerance: 45° at 0km, shrinking down to 10° at >500km
+    tolerance = max(10, 45 - (dist / 15))
     return diff <= tolerance
 
 
@@ -192,11 +196,17 @@ def score_clusters(clusters: list[dict], target_lat: float, target_lon: float) -
     for c in clusters:
         dist = haversine_distance_km(c["lat"], c["lon"], target_lat, target_lon)
         bearing = bearing_to_target(c["lat"], c["lon"], target_lat, target_lon)
-        upwind = is_upwind(c["wind_direction_deg"], bearing)
-
-        # Estimated hours for smoke to reach target
+        
         speed = max(c["wind_speed_kmh"], 1)   # avoid division by zero
+        upwind = is_upwind(c["wind_direction_deg"], bearing, dist)
+        
+        # Estimated hours for smoke to reach target
         arrival_hrs = dist / speed if upwind else None
+        
+        # If ETA is over 48 hours, weather will change before smoke arrives. Discard as threat.
+        if arrival_hrs and arrival_hrs > 48:
+            upwind = False
+            arrival_hrs = None
 
         c["distance_km"] = round(dist, 1)
         c["bearing_to_target"] = round(bearing, 1)
@@ -204,13 +214,20 @@ def score_clusters(clusters: list[dict], target_lat: float, target_lon: float) -
         c["arrival_hrs"] = round(arrival_hrs, 1) if arrival_hrs is not None else None
 
         if upwind:
-            # Weight FRP by proximity (closer fires score higher)
-            weight = max(1, 300 / max(dist, 1))
+            # Proper inverse-distance weight: drops below 1 for fires > 300km away. 
+            # Cap max weight at 3.0 for fires < 100km to avoid singular massive spikes.
+            weight = min(3.0, 300 / max(dist, 100))
+            
+            # Stagnation penalty: Low wind (< 5km/h) close to city (< 100km) causes severe accumulation
+            if speed < 5 and dist < 100:
+                weight *= 1.5
+                
             upwind_frp_total += c["total_frp"] * weight
 
+    # Guarantee minimum 'Moderate' if there are multiple upwind threats (fixes UI disconnect)
     if upwind_frp_total >= RISK_HIGH_FRP:
         risk = "High"
-    elif upwind_frp_total >= RISK_MODERATE_FRP:
+    elif upwind_frp_total >= RISK_MODERATE_FRP or (any(c["is_upwind"] for c in clusters) and upwind_frp_total > 50):
         risk = "Moderate"
     else:
         risk = "Low"
