@@ -257,10 +257,14 @@ export default function App() {
                   {data?.risk_level === 'Low' && <span className="text-[10px] font-bold text-gray-400 border border-gray-700 bg-gray-800 px-2 py-0.5 rounded-sm">AIRSPACE CLEAR</span>}
                 </div>
                 <CardTitle className="text-2xl font-bold text-white leading-tight">
-                  {data?.risk_level === 'Low' ? `Minimal Stubble Smoke Drift Toward ${target.name}` : `High Stubble Smoke Drift Toward ${target.name}`}
+                  {data?.risk_level === 'Low' ? `Minimal Smoke Drift Toward ${target.name}` : 
+                   data?.risk_level === 'Moderate' ? `Moderate Smoke Drift Toward ${target.name}` : 
+                   `Severe Smoke Drift Toward ${target.name}`}
                 </CardTitle>
                 <CardDescription className="text-gray-400 text-sm mt-2 leading-relaxed">
-                  Favorable wind vectors or minimal active burning. Atmospheric dispersion is within safe parameters.
+                  {data?.risk_level === 'Low' ? "Favorable wind vectors or minimal active burning. Atmospheric dispersion is within safe parameters." :
+                   data?.risk_level === 'Moderate' ? "Partial upwind burning detected. Air quality may degrade depending on changing wind conditions." :
+                   "Critical thermal anomalies upwind. Dense smoke vectors trajectory directly intersecting target zone."}
                 </CardDescription>
               </div>
             </div>
