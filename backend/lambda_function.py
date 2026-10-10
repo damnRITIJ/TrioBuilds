@@ -254,7 +254,8 @@ Respond ONLY with valid JSON in this exact format:
 {{"citizens": {{"en": "...", "hi": "..."}}, "authorities": {{"en": "...", "hi": "..."}}}}"""
 
     try:
-        client = boto3.client("bedrock-runtime", region_name="us-east-1")
+        from botocore.config import Config
+        client = boto3.client("bedrock-runtime", region_name="us-east-1", config=Config(retries={'max_attempts': 0}))
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 300,
@@ -346,7 +347,7 @@ def lambda_handler(event, context):
         email = qps.get("email")
         if email and SNS_TOPIC_ARN:
             import boto3
-            sns = boto3.client("sns", region_name="us-east-1")
+            sns = boto3.client("sns")
             sns.subscribe(TopicArn=SNS_TOPIC_ARN, Protocol="email", Endpoint=email)
             return {
                 "statusCode": 200, 
@@ -365,7 +366,7 @@ def lambda_handler(event, context):
 
     # 1. Fetch fire data (7 days for better demo visibility)
     bbox = calculate_bounding_box(target_lat, target_lon)
-    fires = fetch_fires(FIRMS_MAP_KEY, bbox, days=7)
+    fires = fetch_fires(FIRMS_MAP_KEY, bbox, days=5)
     
     def build_response(risk, clusters, advisory):
         upwind_clusters = [c for c in clusters if c.get("is_upwind")]
