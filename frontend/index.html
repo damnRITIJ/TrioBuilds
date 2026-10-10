@@ -1,71 +1,374 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stubble Burning Early Warning — Delhi NCR</title>
-  <meta name="description" content="Real-time early warning system for crop-residue smoke moving toward Delhi NCR. Powered by NASA FIRMS satellite data and AWS." />
+  <title>StubbleWatch — Delhi NCR Stubble Smoke Early Warning System</title>
+  <meta name="description" content="Operational environmental intelligence platform tracking stubble burning smoke plumes moving toward Delhi NCR using NASA VIIRS satellite sensors, Open-Meteo wind vectors, and Amazon Bedrock." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(217 19% 27%)",
+            input: "hsl(217 19% 27%)",
+            ring: "hsl(212 96% 78%)",
+            background: "hsl(222 47% 11%)",
+            foreground: "hsl(210 40% 98%)",
+            primary: {
+              DEFAULT: "hsl(217 91% 60%)",
+              foreground: "hsl(222 47% 11%)",
+            },
+            secondary: {
+              DEFAULT: "hsl(217 19% 27%)",
+              foreground: "hsl(210 40% 98%)",
+            },
+            destructive: {
+              DEFAULT: "hsl(0 84% 60%)",
+              foreground: "hsl(210 40% 98%)",
+            },
+            muted: {
+              DEFAULT: "hsl(217 19% 27%)",
+              foreground: "hsl(215 20% 65%)",
+            },
+            accent: {
+              DEFAULT: "hsl(217 19% 27%)",
+              foreground: "hsl(210 40% 98%)",
+            },
+            card: {
+              DEFAULT: "hsl(222 47% 14%)",
+              foreground: "hsl(210 40% 98%)",
+            },
+          },
+          borderRadius: {
+            lg: "0.75rem",
+            md: "calc(0.75rem - 2px)",
+            sm: "calc(0.75rem - 4px)",
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Google Fonts -->
+
+  <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <!-- Custom styles -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Custom Styles for Leaflet & Animations -->
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="bg-background text-foreground font-['Inter',sans-serif] overflow-hidden w-screen h-screen">
 
-  <!-- ── Top Bar ─────────────────────────────────────────────── -->
-  <header id="topbar">
-    <div id="topbar-left">
-      <span id="logo">🔥 StubbleWatch</span>
-      <span id="subtitle">Delhi NCR Air Early Warning</span>
-    </div>
-    <div id="topbar-right">
-      <!-- Language toggle -->
-      <div id="lang-toggle">
-        <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
-        <button class="lang-btn" id="btn-hi" onclick="setLang('hi')">हि</button>
+  <!-- ── Top Navigation Bar (Shadcn Header) ──────────────────── -->
+  <header class="fixed top-0 left-0 right-0 h-16 border-b border-border/80 bg-slate-950/85 backdrop-blur-md z-40 px-6 flex items-center justify-between shadow-sm">
+    <!-- Left: Brand & Live Status -->
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+          <i data-lucide="flame" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-white">StubbleWatch</span>
+            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">AWS RADAR</span>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-none">Delhi NCR Air Early Warning</p>
+        </div>
       </div>
-      <!-- Last updated -->
-      <span id="last-updated">Loading…</span>
+
+      <div class="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span>NASA VIIRS · 375m Telemetry Live</span>
+      </div>
+    </div>
+
+    <!-- Center: Hazard Ticker -->
+    <div class="hidden lg:flex items-center">
+      <div id="topbar-ticker" class="flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/90 border border-red-500/30 shadow-sm text-xs">
+        <span id="ticker-badge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-600 text-white uppercase tracking-wider">CRITICAL</span>
+        <span id="ticker-text" class="text-slate-200 font-medium">5 Upwind Clusters Detected · Smoke ETA: ~1.3 hrs to Delhi NCR</span>
+      </div>
+    </div>
+
+    <!-- Right: Actions (Shadcn Aligned Buttons) -->
+    <div class="flex items-center gap-2.5">
+      <!-- Sync Button -->
+      <button onclick="refreshPipelineData()" id="btn-refresh" class="inline-flex items-center justify-center gap-1.5 h-9 px-3 text-xs font-medium rounded-md border border-border bg-slate-900/60 hover:bg-slate-800 text-slate-200 transition-colors shadow-sm" title="Re-sync satellite & wind data">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        <span>Sync</span>
+      </button>
+
+      <!-- Language Toggle (Shadcn Segmented Tabs) -->
+      <div class="inline-flex h-9 items-center justify-center rounded-md bg-slate-900/80 p-1 border border-border text-muted-foreground">
+        <button id="btn-en" onclick="setLang('en')" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2.5 py-1 text-xs font-semibold ring-offset-background transition-all bg-sky-500 text-slate-950 shadow-sm">EN</button>
+        <button id="btn-hi" onclick="setLang('hi')" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2.5 py-1 text-xs font-semibold ring-offset-background transition-all text-muted-foreground hover:text-white">हिन्दी</button>
+      </div>
+
+      <!-- Test SNS Trigger -->
+      <button onclick="triggerTestAlert()" id="btn-test-alert" class="hidden sm:inline-flex items-center justify-center gap-1.5 h-9 px-3 text-xs font-medium rounded-md border border-border bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors shadow-sm" title="Trigger a live alert via Amazon SNS">
+        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span>Test Alert</span>
+      </button>
+
+      <!-- Subscribe Modal CTA -->
+      <button onclick="openSubscribeModal()" class="inline-flex items-center justify-center gap-1.5 h-9 px-4 text-xs font-semibold rounded-md bg-sky-500 hover:bg-sky-600 text-slate-950 transition-colors shadow-sm">
+        <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+        <span>Get Alerts</span>
+      </button>
+
+      <span id="last-updated" class="hidden xl:inline text-[11px] text-muted-foreground pl-1">Syncing…</span>
     </div>
   </header>
 
-  <!-- ── Risk Banner ────────────────────────────────────────── -->
-  <div id="risk-banner" class="risk-unknown">
-    <div id="risk-icon">⏳</div>
-    <div id="risk-text">
-      <div id="risk-label">Fetching latest data…</div>
-      <div id="risk-detail"></div>
+  <!-- ── Fullscreen Map Container ───────────────────────────── -->
+  <div id="map" class="w-full h-full"></div>
+
+  <!-- ── HUD Toggle Button (Collapse / Expand) ──────────────── -->
+  <button id="hud-toggle-btn" onclick="toggleHUD()" class="fixed top-20 left-6 z-30 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border border-border bg-slate-950/90 text-slate-300 hover:text-white shadow-lg backdrop-blur transition-all">
+    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+    <span>Minimize HUD</span>
+  </button>
+
+  <!-- ── Left Floating Mission HUD (Shadcn Cards) ────────────── -->
+  <aside id="mission-hud" class="fixed top-28 left-6 z-20 w-[380px] max-h-[calc(100vh-8.5rem)] overflow-y-auto space-y-3.5 transition-transform duration-300">
+    <!-- Card 1: Threat Assessment Hero -->
+    <div id="threat-card" class="rounded-xl border border-red-500/40 bg-slate-950/90 backdrop-blur-md p-4 shadow-xl text-card-foreground">
+      <div class="flex items-center justify-between mb-2">
+        <span id="threat-badge-text" class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30 uppercase tracking-wider">CRITICAL THREAT</span>
+        <span id="threat-eta-text" class="text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded">ETA: ~1.3 HRS</span>
+      </div>
+      <h2 id="threat-headline" class="text-base font-bold text-white leading-snug mb-1">Severe Smoke Drift Toward Delhi NCR</h2>
+      <p id="threat-subtext" class="text-xs text-muted-foreground leading-relaxed mb-3">
+        Northwest wind vectors (315° NW) are actively channeling dense crop-residue smoke directly into the Delhi NCR air basin.
+      </p>
+      <div class="flex items-center gap-2 p-2 rounded-lg bg-red-950/40 border border-red-900/60 text-xs text-red-300">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400 shrink-0"></i>
+        <span><strong>Predicted Impact:</strong> Severe AQI Spikes (>400 AQI)</span>
+      </div>
+    </div>
+
+    <!-- Card 2: Key Telemetry Grid (4 Micro-Cards) -->
+    <div id="telemetry-grid" class="grid grid-cols-2 gap-2.5">
+      <div class="rounded-lg border border-border/80 bg-slate-950/85 backdrop-blur p-3 shadow-md">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Targeting Delhi</div>
+        <div id="val-upwind-count" class="text-xl font-bold text-white">5 <span class="text-xs font-normal text-muted-foreground">clusters</span></div>
+        <div id="val-upwind-sub" class="text-[11px] text-muted-foreground mt-0.5">Out of 8 total regional</div>
+      </div>
+      <div class="rounded-lg border border-border/80 bg-slate-950/85 backdrop-blur p-3 shadow-md">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Closest Burning</div>
+        <div id="val-nearest-dist" class="text-xl font-bold text-white">140 <span class="text-xs font-normal text-muted-foreground">km</span></div>
+        <div class="text-[11px] text-muted-foreground mt-0.5">Karnal / Patiala Belt</div>
+      </div>
+      <div class="rounded-lg border border-border/80 bg-slate-950/85 backdrop-blur p-3 shadow-md">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Wind Vector</div>
+        <div id="val-wind-speed" class="text-xl font-bold text-white">22 <span class="text-xs font-normal text-muted-foreground">km/h</span></div>
+        <div id="val-wind-dir" class="text-[11px] text-muted-foreground mt-0.5">NW ↘ SE (Delhi Heading)</div>
+      </div>
+      <div class="rounded-lg border border-border/80 bg-slate-950/85 backdrop-blur p-3 shadow-md">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Radiative Power</div>
+        <div id="val-total-frp" class="text-xl font-bold text-white">1,553 <span class="text-xs font-normal text-muted-foreground">MW</span></div>
+        <div class="text-[11px] text-muted-foreground mt-0.5">Cumulative Energy (FRP)</div>
+      </div>
+    </div>
+
+    <!-- Card 3: Amazon Bedrock GenAI Advisory -->
+    <div class="rounded-xl border border-border/80 bg-slate-950/90 backdrop-blur-md p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-2.5">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-white">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
+          <span>Amazon Bedrock Advisory</span>
+        </div>
+        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">amazon.nova-micro</span>
+      </div>
+      <div id="advisory-content" class="text-xs text-slate-200 leading-relaxed bg-slate-900/80 p-3 rounded-lg border-l-2 border-sky-400 mb-3">
+        Generating bilingual advisory…
+      </div>
+
+      <!-- Action Guidance Tabs -->
+      <div>
+        <div class="flex gap-2 border-b border-border/60 pb-2 mb-2.5">
+          <button id="tab-citizens" onclick="switchGuidance('citizens')" class="text-xs font-semibold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded">For Citizens</button>
+          <button id="tab-authorities" onclick="switchGuidance('authorities')" class="text-xs font-semibold text-muted-foreground hover:text-white px-2 py-0.5 rounded">For Authorities</button>
+        </div>
+        <div id="guidance-body" class="text-xs text-slate-300 space-y-1.5">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Active Burning Sectors List (Flightradar style) -->
+    <div class="rounded-xl border border-border/80 bg-slate-950/90 backdrop-blur-md p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Active Burning Sectors</span>
+        <span id="sectors-count" class="text-[11px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded">5 UPWIND</span>
+      </div>
+      <div id="sectors-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+        <!-- Populated dynamically via JS -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Right Floating Cluster Inspector Drawer ─────────────── -->
+  <aside id="cluster-inspector" class="fixed top-20 right-6 z-30 w-80 rounded-xl border border-border/80 bg-slate-950/95 backdrop-blur-md p-4 shadow-2xl transition-transform duration-300 translate-x-[400px]">
+    <div class="flex items-center justify-between border-b border-border/60 pb-2.5 mb-3">
+      <div class="flex items-center gap-2">
+        <i data-lucide="map-pin" class="w-4 h-4 text-sky-400"></i>
+        <h3 id="inspector-title" class="text-sm font-bold text-white">Sector Telemetry</h3>
+      </div>
+      <button onclick="closeInspector()" class="text-muted-foreground hover:text-white">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="space-y-2.5 text-xs">
+      <div id="inspector-upwind-status" class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+        DIRECT UPWIND THREAT
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Sector:</span>
+        <strong id="insp-sector-name" class="text-white">Bathinda Sector, Punjab</strong>
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Coordinates:</span>
+        <strong id="insp-coords" class="text-white">30.20° N, 74.50° E</strong>
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Thermal Energy:</span>
+        <strong id="insp-frp" class="text-red-400 font-bold">126.3 MW</strong>
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Distance to Delhi:</span>
+        <strong id="insp-distance" class="text-white">316.2 km</strong>
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Wind Vector:</span>
+        <strong id="insp-wind" class="text-white">22 km/h · NW</strong>
+      </div>
+      <div class="flex justify-between border-b border-border/40 pb-1.5">
+        <span class="text-muted-foreground">Estimated Arrival:</span>
+        <strong id="insp-arrival" class="text-sky-400 font-bold">~14.4 hours</strong>
+      </div>
+      <button onclick="focusClusterPath()" class="w-full mt-2 inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-semibold transition-colors">
+        <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
+        <span>Trace Smoke Path</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Floating Map Quick Action Buttons (Bottom Left) ─────── -->
+  <div class="fixed bottom-6 left-6 z-30 flex items-center gap-2">
+    <button onclick="resetToDelhiView()" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border border-border bg-slate-950/90 text-slate-200 hover:text-white shadow-lg backdrop-blur transition-all">
+      <i data-lucide="crosshair" class="w-3.5 h-3.5 text-sky-400"></i>
+      <span>Center Delhi</span>
+    </button>
+    <button onclick="fitAllClustersView()" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border border-border bg-slate-950/90 text-slate-200 hover:text-white shadow-lg backdrop-blur transition-all">
+      <i data-lucide="maximize" class="w-3.5 h-3.5 text-sky-400"></i>
+      <span>Fit All Fires</span>
+    </button>
+  </div>
+
+  <!-- ── Map Floating Legend (Bottom Right) ──────────────────── -->
+  <div class="fixed bottom-6 right-6 z-30 rounded-xl border border-border/80 bg-slate-950/90 backdrop-blur-md p-3.5 shadow-xl text-xs space-y-1.5">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Map Telemetry</div>
+    <div class="flex items-center gap-2 text-slate-300">
+      <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+      <span>Upwind Fire Cluster (Threat to Delhi)</span>
+    </div>
+    <div class="flex items-center gap-2 text-slate-300">
+      <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+      <span>Lateral Fire Cluster (Divergent Wind)</span>
+    </div>
+    <div class="flex items-center gap-2 text-slate-300">
+      <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]"></span>
+      <span>Delhi NCR Target Receptor</span>
+    </div>
+    <div class="flex items-center gap-2 text-slate-300">
+      <span class="w-4 h-0.5 border-t border-dashed border-red-500"></span>
+      <span>Smoke Drift Vector</span>
     </div>
   </div>
 
-  <!-- ── Advisory Panel ────────────────────────────────────── -->
-  <div id="advisory-panel">
-    <p id="advisory-text">Loading advisory…</p>
+  <!-- ── Email Subscription Modal (Shadcn Dialog) ─────────────── -->
+  <div id="subscribe-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="relative w-full max-w-md rounded-xl border border-border bg-slate-950 p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            <i data-lucide="bell-ring" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Subscribe to Early Warnings</h3>
+            <p class="text-xs text-muted-foreground">Direct alert delivery via Amazon SNS infrastructure</p>
+          </div>
+        </div>
+        <button onclick="closeSubscribeModal()" class="text-muted-foreground hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleSubscribeSubmit(event)" class="space-y-3.5">
+        <div class="space-y-1.5">
+          <label for="sub-email" class="text-xs font-semibold text-slate-200">Email Address <span class="text-red-400">*</span></label>
+          <input type="email" id="sub-email" placeholder="resident@delhi-ncr.gov.in" required class="flex h-9 w-full rounded-md border border-border bg-slate-900 px-3 py-1 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-sky-400" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label for="sub-role" class="text-xs font-semibold text-slate-200">Category</label>
+            <select id="sub-role" class="flex h-9 w-full rounded-md border border-border bg-slate-900 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-400">
+              <option value="Citizen">Resident / Citizen</option>
+              <option value="School Admin">School Administrator</option>
+              <option value="Healthcare">Healthcare Facility</option>
+              <option value="Authority">Municipal Authority</option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label for="sub-threshold" class="text-xs font-semibold text-slate-200">Alert Sensitivity</label>
+            <select id="sub-threshold" class="flex h-9 w-full rounded-md border border-border bg-slate-900 px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-sky-400">
+              <option value="High Only">High Risk Only</option>
+              <option value="All">All Risk Updates</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-lg bg-sky-950/30 border border-sky-800/40 text-xs text-sky-200 leading-relaxed">
+          ℹ️ <strong>Amazon SNS Verification:</strong> AWS sends a confirmation email to verify your address. Please click the link in your inbox.
+        </div>
+
+        <div id="subscribe-result" class="hidden p-3 rounded-lg text-xs leading-relaxed"></div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeSubscribeModal()" class="h-9 px-4 text-xs font-medium rounded-md border border-border bg-slate-900 hover:bg-slate-800 text-slate-200">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit-sub" class="h-9 px-4 text-xs font-semibold rounded-md bg-sky-500 hover:bg-sky-600 text-slate-950 transition-colors">
+            Activate Warnings
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
-  <!-- ── Leaflet Map ────────────────────────────────────────── -->
-  <div id="map"></div>
-
-  <!-- ── Legend ────────────────────────────────────────────── -->
-  <div id="legend">
-    <div class="legend-title">Legend</div>
-    <div class="legend-item"><span class="dot dot-upwind"></span> Upwind fire cluster</div>
-    <div class="legend-item"><span class="dot dot-neutral"></span> Other fire cluster</div>
-    <div class="legend-item"><span class="dot dot-delhi"></span> Delhi (target)</div>
-  </div>
-
-  <!-- ── Replay Mode Banner ─────────────────────────────────── -->
-  <div id="replay-banner" style="display:none;">
-    📼 Replay Mode — Data from a high-fire day snapshot
-  </div>
-
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS (CDN) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- App logic -->
+  <!-- Application Controller -->
   <script src="app.js"></script>
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+  </script>
 </body>
 </html>

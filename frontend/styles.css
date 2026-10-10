@@ -1,273 +1,144 @@
 /* ============================================================
    StubbleWatch — styles.css
-   Dark-mode map dashboard with vibrant risk indicators
+   Complementary animations, Leaflet overrides & radar effects
    ============================================================ */
 
-/* ── Fonts & Reset ─────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg-dark:        #0d1117;
-  --bg-panel:       #161b22;
-  --bg-glass:       rgba(22, 27, 34, 0.85);
-  --border:         rgba(255, 255, 255, 0.08);
-  --text-primary:   #e6edf3;
-  --text-muted:     #8b949e;
-  --accent-blue:    #58a6ff;
-
-  /* Risk colours */
-  --risk-high:      #f85149;
-  --risk-moderate:  #e3b341;
-  --risk-low:       #3fb950;
-  --risk-unknown:   #8b949e;
-
-  --topbar-h:       56px;
-  --banner-h:       68px;
-  --advisory-h:     72px;
-}
-
-html, body {
-  height: 100%;
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-  overflow: hidden;
-}
-
-/* ── Top Bar ────────────────────────────────────────────────── */
-#topbar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: var(--topbar-h);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  z-index: 1000;
-}
-
-#logo {
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  margin-right: 10px;
-}
-
-#subtitle {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-#topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-#last-updated {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-/* ── Language Toggle ────────────────────────────────────────── */
-#lang-toggle {
-  display: flex;
-  gap: 4px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 3px;
-}
-
-.lang-btn {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-
-.lang-btn.active {
-  background: var(--accent-blue);
-  color: #fff;
-}
-
-.lang-btn:hover:not(.active) {
-  background: rgba(255,255,255,0.1);
-  color: var(--text-primary);
-}
-
-/* ── Risk Banner ────────────────────────────────────────────── */
-#risk-banner {
-  position: fixed;
-  top: var(--topbar-h);
-  left: 0; right: 0;
-  height: var(--banner-h);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 20px;
-  z-index: 999;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.6s ease;
-}
-
-#risk-banner.risk-high     { background: rgba(248, 81, 73, 0.18); border-left: 4px solid var(--risk-high); }
-#risk-banner.risk-moderate { background: rgba(227, 179, 65, 0.18); border-left: 4px solid var(--risk-moderate); }
-#risk-banner.risk-low      { background: rgba(63, 185, 80, 0.18); border-left: 4px solid var(--risk-low); }
-#risk-banner.risk-unknown  { background: rgba(139, 148, 158, 0.10); border-left: 4px solid var(--risk-unknown); }
-
-#risk-icon {
-  font-size: 1.8rem;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.15); }
-}
-
-#risk-label {
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-#risk-detail {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-/* ── Advisory Panel ─────────────────────────────────────────── */
-#advisory-panel {
-  position: fixed;
-  top: calc(var(--topbar-h) + var(--banner-h));
-  left: 0; right: 0;
-  height: var(--advisory-h);
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  z-index: 998;
-  overflow: hidden;
-}
-
-#advisory-text {
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  line-height: 1.5;
-  max-width: 900px;
-}
-
-/* ── Map ────────────────────────────────────────────────────── */
+/* ── Fullscreen Map Base ───────────────────────────────────── */
 #map {
   position: fixed;
-  top: calc(var(--topbar-h) + var(--banner-h) + var(--advisory-h));
-  left: 0; right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 1;
+  background-color: #cbd5e1;
 }
 
-/* Override Leaflet tiles for dark feel */
-.leaflet-tile-pane { filter: brightness(0.6) saturate(0.5); }
-
-/* ── Legend ─────────────────────────────────────────────────── */
-#legend {
-  position: fixed;
-  bottom: 24px;
-  right: 16px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  z-index: 1000;
-  font-size: 0.78rem;
-  min-width: 180px;
+/* Ensure no CSS filters touch map tiles so standard street view is crisp */
+.leaflet-tile-pane {
+  filter: none !important;
 }
 
-.legend-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.5px;
+/* ── Custom Scrollbars ─────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
 }
 
-.legend-item {
+/* ── Animated Trajectory Dash Lines ─────────────────────────── */
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.flowing-smoke-vector {
+  animation: flowDash 1.2s linear infinite;
+}
+
+/* ── Custom HTML Thermal Heat Marker ────────────────────────── */
+.thermal-marker-wrap {
+  position: relative;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  color: var(--text-primary);
+  justify-content: center;
+  cursor: pointer;
 }
 
-.dot {
-  display: inline-block;
-  width: 12px; height: 12px;
+.thermal-heat-halo {
+  position: absolute;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  flex-shrink: 0;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.5) 0%, rgba(239, 68, 68, 0) 70%);
+  animation: heatPulse 2s infinite ease-in-out;
 }
 
-.dot-upwind  { background: var(--risk-high); box-shadow: 0 0 6px var(--risk-high); }
-.dot-neutral { background: var(--risk-moderate); }
-.dot-delhi   { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
+@keyframes heatPulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.4); opacity: 0.2; }
+}
 
-/* ── Replay Banner ───────────────────────────────────────────── */
-#replay-banner {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(88, 166, 255, 0.15);
-  border: 1px solid var(--accent-blue);
-  color: var(--accent-blue);
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  z-index: 1000;
-  backdrop-filter: blur(8px);
+.thermal-core-badge {
+  position: relative;
+  z-index: 2;
+  background: #dc2626;
+  border: 1.5px solid #ffffff;
+  border-radius: 9999px;
+  padding: 2px 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.thermal-core-badge.lateral-badge {
+  background: #d97706;
+}
+
+/* ── Delhi Target Receptor Radar Reticle ─────────────────────── */
+.delhi-reticle-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delhi-radar-sweep {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #0284c7;
+  background: rgba(2, 132, 199, 0.15);
+  animation: radarPing 2.4s infinite cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+
+@keyframes radarPing {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.delhi-bullseye {
+  position: relative;
+  z-index: 2;
+  background: #0284c7;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 10px #0284c7;
 }
 
 /* ── Leaflet Popup Overrides ────────────────────────────────── */
 .leaflet-popup-content-wrapper {
-  background: var(--bg-panel) !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
+  background: rgba(2, 6, 23, 0.96) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+  padding: 4px !important;
 }
 
-.leaflet-popup-tip { background: var(--bg-panel) !important; }
-
-.popup-title {
-  font-weight: 700;
-  margin-bottom: 6px;
-  font-size: 0.9rem;
+.leaflet-popup-tip {
+  background: rgba(2, 6, 23, 0.96) !important;
 }
-
-.popup-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-bottom: 3px;
-}
-
-.popup-row span:last-child { color: var(--text-primary); font-weight: 500; }
-
-/* ── Scrollbar (advisory panel) ────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
