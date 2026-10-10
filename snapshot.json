@@ -1,14 +1,107 @@
 {
-  "timestamp": "2026-10-08T10:00:00Z",
-  "risk_level": "High",
+  "timestamp": "2026-10-10T06:58:42.355248+00:00",
+  "risk_level": "Low",
+  "upwind_clusters": [],
   "all_clusters": [
-    { "lat": 29.5, "lon": 75.4, "total_frp": 120.0, "wind_speed_kmh": 22, "wind_direction_deg": 330, "distance_km": 190.5, "is_upwind": true, "arrival_hrs": 8.6 },
-    { "lat": 29.0, "lon": 76.5, "total_frp": 55.0, "wind_speed_kmh": 25, "wind_direction_deg": 300, "distance_km": 80.2, "is_upwind": true, "arrival_hrs": 3.2 },
-    { "lat": 28.9, "lon": 76.8, "total_frp": 88.0, "wind_speed_kmh": 20, "wind_direction_deg": 285, "distance_km": 50.1, "is_upwind": true, "arrival_hrs": 2.5 },
-    { "lat": 30.2, "lon": 74.5, "total_frp": 85.3, "wind_speed_kmh": 18, "wind_direction_deg": 45, "distance_km": 310.0, "is_upwind": false, "arrival_hrs": null }
+    {
+      "lat": 30.200000000000003,
+      "lon": 74.5,
+      "total_frp": 126.3,
+      "count": 2,
+      "wind_speed_kmh": 14.6,
+      "wind_direction_deg": 114,
+      "distance_km": 316.2,
+      "bearing_to_delhi": 123.2,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 30.1,
+      "lon": 74.60000000000001,
+      "total_frp": 92.1,
+      "count": 1,
+      "wind_speed_kmh": 16.1,
+      "wind_direction_deg": 114,
+      "distance_km": 302.0,
+      "bearing_to_delhi": 122.5,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 29.8,
+      "lon": 75.0,
+      "total_frp": 47.6,
+      "count": 1,
+      "wind_speed_kmh": 16.6,
+      "wind_direction_deg": 100,
+      "distance_km": 251.7,
+      "bearing_to_delhi": 121.1,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 29.5,
+      "lon": 75.4,
+      "total_frp": 120.0,
+      "count": 1,
+      "wind_speed_kmh": 15.8,
+      "wind_direction_deg": 91,
+      "distance_km": 201.6,
+      "bearing_to_delhi": 118.8,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 29.3,
+      "lon": 76.10000000000001,
+      "total_frp": 65.0,
+      "count": 1,
+      "wind_speed_kmh": 14.6,
+      "wind_direction_deg": 89,
+      "distance_km": 132.1,
+      "bearing_to_delhi": 125.0,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 29.0,
+      "lon": 76.5,
+      "total_frp": 55.0,
+      "count": 1,
+      "wind_speed_kmh": 11.3,
+      "wind_direction_deg": 91,
+      "distance_km": 81.3,
+      "bearing_to_delhi": 121.7,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 28.900000000000002,
+      "lon": 76.80000000000001,
+      "total_frp": 88.0,
+      "count": 1,
+      "wind_speed_kmh": 12.1,
+      "wind_direction_deg": 94,
+      "distance_km": 51.0,
+      "bearing_to_delhi": 128.5,
+      "is_upwind": false,
+      "arrival_hrs": null
+    },
+    {
+      "lat": 28.8,
+      "lon": 77.0,
+      "total_frp": 102.0,
+      "count": 1,
+      "wind_speed_kmh": 10.1,
+      "wind_direction_deg": 96,
+      "distance_km": 29.0,
+      "bearing_to_delhi": 135.4,
+      "is_upwind": false,
+      "arrival_hrs": null
+    }
   ],
   "advisory": {
-    "en": "Risk level is High. 3 fire clusters detected upwind of Delhi. Estimated smoke arrival in 2.5 hours. Authorities should prepare for air quality deterioration.",
-    "hi": "जोखिम स्तर: High। दिल्ली की ओर 3 अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: 2.5 घंटे। अधिकारियों को वायु गुणवत्ता बिगड़ने की तैयारी करनी चाहिए।"
+    "en": "Risk level is Low. 0 fire cluster(s) detected upwind of Delhi. Estimated smoke arrival in N/A hours.",
+    "hi": "\u091c\u094b\u0916\u093f\u092e \u0938\u094d\u0924\u0930: Low\u0964 \u0926\u093f\u0932\u094d\u0932\u0940 \u0915\u0940 \u0913\u0930 0 \u0905\u0917\u094d\u0928\u093f \u0938\u092e\u0942\u0939 \u092a\u093e\u090f \u0917\u090f\u0964 \u0905\u0928\u0941\u092e\u093e\u0928\u093f\u0924 \u0927\u0941\u0906\u0902 \u092a\u0939\u0941\u0902\u091a\u0928\u0947 \u0915\u093e \u0938\u092e\u092f: N/A \u0918\u0902\u091f\u0947\u0964"
   }
 }

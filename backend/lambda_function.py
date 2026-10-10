@@ -218,10 +218,10 @@ def score_clusters(clusters: list[dict]) -> tuple[str, list[dict]]:
 
 def generate_advisory(risk: str, clusters: list[dict]) -> dict:
     """
-    Build a structured summary and call Amazon Bedrock (Claude) to generate
+    Build a structured summary and call Amazon Bedrock to generate
     a short, bilingual advisory. Returns {"en": "...", "hi": "..."}.
 
-    Falls back to a template advisory if Bedrock is unavailable.
+    Falls back to a template advisory if Bedrock is unavailable or verifying.
     """
     import boto3
 
@@ -237,42 +237,51 @@ def generate_advisory(risk: str, clusters: list[dict]) -> dict:
         f"Overall risk level: {risk}."
     )
 
-    prompt = f"""You are an air-quality advisory system. Based on the data below, write two short advisories:
-1. One in English (2-3 sentences, for city authorities).
-2. One in Hindi (2-3 sentences, for Hindi-speaking residents).
+    fallback_advisory = {
+        "en": f"Risk level is {risk}. {len(upwind)} fire cluster(s) detected upwind of Delhi. Estimated smoke arrival in {arrival} hours.",
+        "hi": f"जोखिम स्तर: {risk}। दिल्ली की ओर {len(upwind)} अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: {arrival} घंटे।",
+    }
 
-Data: {summary}
+    if not BEDROCK_MODEL_ID:
+        return fallback_advisory
 
-Respond ONLY with valid JSON in this exact format:
-{{"en": "...", "hi": "..."}}"""
+    prompt = (
+        "You are an air-quality early warning system. Based on the data below, write two concise advisories:\n"
+        "1. In English (2 sentences, for city authorities and residents).\n"
+        "2. In Hindi (2 sentences, for Hindi-speaking residents).\n\n"
+        f"Data: {summary}\n\n"
+        'Respond ONLY with valid JSON in this exact structure: {"en": "...", "hi": "..."}'
+    )
 
+    region = os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-2")
     try:
-        client = boto3.client("bedrock-runtime", region_name="us-east-1")
-        body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 300,
-            "messages": [{"role": "user", "content": prompt}],
-        })
-        response = client.invoke_model(modelId=BEDROCK_MODEL_ID, body=body)
-        raw = json.loads(response["body"].read())
-        text = raw["content"][0]["text"].strip()
+        client = boto3.client("bedrock-runtime", region_name=region)
+        # Use Bedrock Converse API for broad model compatibility (Nova, Claude, etc.)
+        response = client.converse(
+            modelId=BEDROCK_MODEL_ID,
+            messages=[{"role": "user", "content": [{"text": prompt}]}]
+        )
+        text = response["output"]["message"]["content"][0]["text"].strip()
+        # Clean any markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
         advisory = json.loads(text)
     except Exception as e:
-        logger.warning(f"Bedrock call failed ({e}), using fallback advisory")
-        advisory = {
-            "en": f"Risk level is {risk}. {len(upwind)} fire clusters detected upwind of Delhi. Estimated smoke arrival in {arrival} hours.",
-            "hi": f"जोखिम स्तर: {risk}। दिल्ली की ओर {len(upwind)} अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: {arrival} घंटे।",
-        }
+        logger.warning(f"Bedrock call notice ({e}), using reliable fallback advisory")
+        advisory = fallback_advisory
 
     return advisory
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 6 — Write Snapshot to S3
+# STEP 6 — Write Snapshot to S3 & Local
 # ─────────────────────────────────────────────────────────────────────────────
 
 def write_snapshot(bucket: str, risk: str, clusters: list[dict], advisory: dict) -> None:
-    """Serialize analysis results to snapshot.json and upload to S3."""
+    """Serialize analysis results to snapshot.json, upload to S3, and save locally."""
     import boto3
 
     upwind_clusters = [
@@ -287,15 +296,37 @@ def write_snapshot(bucket: str, risk: str, clusters: list[dict], advisory: dict)
         "all_clusters": clusters,
         "advisory": advisory,
     }
+    json_data = json.dumps(snapshot, indent=2)
 
-    s3 = boto3.client("s3")
-    s3.put_object(
-        Bucket=bucket,
-        Key="snapshot.json",
-        Body=json.dumps(snapshot, indent=2),
-        ContentType="application/json",
-    )
-    logger.info(f"snapshot.json written to s3://{bucket}/snapshot.json")
+    # Clean bucket name if full ARN was passed
+    clean_bucket = (bucket or "").replace("arn:aws:s3:::", "").strip()
+
+    if clean_bucket:
+        try:
+            s3 = boto3.client("s3")
+            s3.put_object(
+                Bucket=clean_bucket,
+                Key="snapshot.json",
+                Body=json_data,
+                ContentType="application/json",
+            )
+            logger.info(f"snapshot.json uploaded to s3://{clean_bucket}/snapshot.json")
+        except Exception as e:
+            logger.warning(f"Could not upload snapshot to S3: {e}")
+
+    # Also save to local frontend folder for instant local dashboard rendering
+    local_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "frontend", "snapshot.json"),
+        os.path.join(os.path.dirname(__file__), "..", "snapshot.json")
+    ]
+    for p in local_paths:
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(json_data)
+            logger.info(f"snapshot.json written locally to {p}")
+        except Exception as e:
+            logger.debug(f"Local file write note for {p}: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,13 +340,23 @@ def send_sns_alert(topic_arn: str, risk: str, advisory: dict) -> None:
         return
 
     import boto3
-    sns = boto3.client("sns", region_name="us-east-1")
-    sns.publish(
-        TopicArn=topic_arn,
-        Subject=f"🔴 Stubble Burning Alert — Risk: {risk}",
-        Message=f"{advisory['en']}\n\n{advisory['hi']}",
-    )
-    logger.info("SNS alert published")
+    # Determine region from ARN if present (e.g. arn:aws:sns:ap-southeast-2:...)
+    region = os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-2")
+    if topic_arn.startswith("arn:aws:sns:"):
+        parts = topic_arn.split(":")
+        if len(parts) >= 4 and parts[3]:
+            region = parts[3]
+
+    try:
+        sns = boto3.client("sns", region_name=region)
+        sns.publish(
+            TopicArn=topic_arn,
+            Subject=f"🔴 Stubble Burning Alert — Risk: {risk}",
+            Message=f"{advisory.get('en', '')}\n\n{advisory.get('hi', '')}",
+        )
+        logger.info(f"SNS alert published successfully to {topic_arn} in {region}")
+    except Exception as e:
+        logger.warning(f"Failed to publish SNS alert: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
