@@ -24,8 +24,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-DELHI = {"lat": 28.6139, "lon": 77.2090}
-BOUNDING_BOX = "73,28,80,31"   # lon_min, lat_min, lon_max, lat_max (Punjab/Haryana/W-UP)
+DEFAULT_TARGET = {"lat": 28.6139, "lon": 77.2090, "name": "Delhi"}
+BBOX_PADDING_DEG = 3.0          # ~330km radius for fire search
 GRID_DEGREES = 0.1              # ~10 km grid for clustering
 UPWIND_TOLERANCE_DEG = 30       # ±30° cone toward Delhi counts as "upwind"
 RISK_HIGH_FRP = 500             # Cumulative FRP threshold for High risk
@@ -41,6 +41,13 @@ BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 1 — Fire Detection (NASA FIRMS)
 # ─────────────────────────────────────────────────────────────────────────────
+
+def calculate_bounding_box(lat: float, lon: float, padding: float = BBOX_PADDING_DEG) -> str:
+    """Calculate a square bounding box (lon_min,lat_min,lon_max,lat_max) around target."""
+    lat_min, lat_max = lat - padding, lat + padding
+    lon_min, lon_max = lon - padding, lon + padding
+    # FIRMS expects: West, South, East, North (lon_min, lat_min, lon_max, lat_max)
+    return f"{lon_min:.2f},{lat_min:.2f},{lon_max:.2f},{lat_max:.2f}"
 
 def fetch_fires(map_key: str, bbox: str, days: int = 1) -> list[dict]:
     """
@@ -147,13 +154,13 @@ def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) ->
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def bearing_to_delhi(lat: float, lon: float) -> float:
+def bearing_to_target(lat: float, lon: float, target_lat: float, target_lon: float) -> float:
     """
-    Compute the compass bearing (0–360°) from (lat, lon) to Delhi.
+    Compute the compass bearing (0–360°) from (lat, lon) to target.
     0° = North, 90° = East, etc.
     """
     lat1, lon1 = math.radians(lat), math.radians(lon)
-    lat2, lon2 = math.radians(DELHI["lat"]), math.radians(DELHI["lon"])
+    lat2, lon2 = math.radians(target_lat), math.radians(target_lon)
     dlon = lon2 - lon1
     x = math.sin(dlon) * math.cos(lat2)
     y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
@@ -174,7 +181,7 @@ def is_upwind(wind_direction_deg: float, bearing_deg: float, tolerance: float = 
     return diff <= tolerance
 
 
-def score_clusters(clusters: list[dict]) -> tuple[str, list[dict]]:
+def score_clusters(clusters: list[dict], target_lat: float, target_lon: float) -> tuple[str, list[dict]]:
     """
     Annotate each cluster with upwind status, distance, and arrival time.
     Compute an overall risk level: 'Low', 'Moderate', or 'High'.
@@ -183,16 +190,16 @@ def score_clusters(clusters: list[dict]) -> tuple[str, list[dict]]:
     upwind_frp_total = 0.0
 
     for c in clusters:
-        dist = haversine_distance_km(c["lat"], c["lon"], DELHI["lat"], DELHI["lon"])
-        bearing = bearing_to_delhi(c["lat"], c["lon"])
+        dist = haversine_distance_km(c["lat"], c["lon"], target_lat, target_lon)
+        bearing = bearing_to_target(c["lat"], c["lon"], target_lat, target_lon)
         upwind = is_upwind(c["wind_direction_deg"], bearing)
 
-        # Estimated hours for smoke to reach Delhi
+        # Estimated hours for smoke to reach target
         speed = max(c["wind_speed_kmh"], 1)   # avoid division by zero
         arrival_hrs = dist / speed if upwind else None
 
         c["distance_km"] = round(dist, 1)
-        c["bearing_to_delhi"] = round(bearing, 1)
+        c["bearing_to_target"] = round(bearing, 1)
         c["is_upwind"] = upwind
         c["arrival_hrs"] = round(arrival_hrs, 1) if arrival_hrs is not None else None
 
@@ -216,7 +223,7 @@ def score_clusters(clusters: list[dict]) -> tuple[str, list[dict]]:
 # STEP 5 — Bedrock Advisory
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_advisory(risk: str, clusters: list[dict]) -> dict:
+def generate_advisory(risk: str, clusters: list[dict], target_name: str) -> dict:
     """
     Build a structured summary and call Amazon Bedrock (Claude) to generate
     a short, bilingual advisory. Returns {"en": "...", "hi": "..."}.
@@ -231,23 +238,24 @@ def generate_advisory(risk: str, clusters: list[dict]) -> dict:
     arrival = nearest["arrival_hrs"] if nearest else "N/A"
 
     summary = (
-        f"Active crop-fire clusters upwind of Delhi: {len(upwind)}. "
+        f"Active crop-fire clusters upwind of {target_name}: {len(upwind)}. "
         f"Nearest upwind cluster: {nearest_dist} km. "
         f"Estimated smoke arrival: {arrival} hours. "
         f"Overall risk level: {risk}."
     )
 
-    prompt = f"""You are an air-quality advisory system. Based on the data below, write two short advisories:
-1. One in English (2-3 sentences, for city authorities).
-2. One in Hindi (2-3 sentences, for Hindi-speaking residents).
+    prompt = f"""You are an air-quality advisory system. Based on the data below, write short advisories:
+1. For Citizens (English and Hindi, 2 sentences each).
+2. For Authorities (English and Hindi, 2 sentences each, more technical).
 
 Data: {summary}
 
 Respond ONLY with valid JSON in this exact format:
-{{"en": "...", "hi": "..."}}"""
+{{"citizens": {{"en": "...", "hi": "..."}}, "authorities": {{"en": "...", "hi": "..."}}}}"""
 
     try:
-        client = boto3.client("bedrock-runtime", region_name="us-east-1")
+        from botocore.config import Config
+        client = boto3.client("bedrock-runtime", region_name="us-east-1", config=Config(retries={'max_attempts': 0}))
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 300,
@@ -260,8 +268,14 @@ Respond ONLY with valid JSON in this exact format:
     except Exception as e:
         logger.warning(f"Bedrock call failed ({e}), using fallback advisory")
         advisory = {
-            "en": f"Risk level is {risk}. {len(upwind)} fire clusters detected upwind of Delhi. Estimated smoke arrival in {arrival} hours.",
-            "hi": f"जोखिम स्तर: {risk}। दिल्ली की ओर {len(upwind)} अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: {arrival} घंटे।",
+            "citizens": {
+                "en": f"Risk level is {risk}. {len(upwind)} fire clusters detected upwind of {target_name}. Stay alert.",
+                "hi": f"जोखिम स्तर: {risk}। {target_name} की ओर {len(upwind)} अग्नि समूह पाए गए। सतर्क रहें।"
+            },
+            "authorities": {
+                "en": f"Risk level is {risk}. {len(upwind)} fire clusters detected upwind of {target_name}. Estimated smoke arrival in {arrival} hours.",
+                "hi": f"जोखिम स्तर: {risk}। {target_name} की ओर {len(upwind)} अग्नि समूह पाए गए। अनुमानित धुआं पहुंचने का समय: {arrival} घंटे।"
+            }
         }
 
     return advisory
@@ -313,7 +327,7 @@ def send_sns_alert(topic_arn: str, risk: str, advisory: dict) -> None:
     sns.publish(
         TopicArn=topic_arn,
         Subject=f"🔴 Stubble Burning Alert — Risk: {risk}",
-        Message=f"{advisory['en']}\n\n{advisory['hi']}",
+        Message=f"Citizens:\n{advisory['citizens']['en']}\n\nAuthorities:\n{advisory['authorities']['en']}",
     )
     logger.info("SNS alert published")
 
@@ -323,15 +337,69 @@ def send_sns_alert(topic_arn: str, risk: str, advisory: dict) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
-    """Main entry point triggered by EventBridge every 1-3 hours."""
+    """Main entry point triggered by API Gateway or EventBridge."""
     logger.info("Pipeline started")
 
-    # 1. Fetch fire data
-    fires = fetch_fires(FIRMS_MAP_KEY, BOUNDING_BOX)
+    qps = event.get("queryStringParameters") or {}
+    
+    # Handle SNS Subscription Endpoint
+    if qps.get("action") == "subscribe":
+        email = qps.get("email")
+        if email and SNS_TOPIC_ARN:
+            import boto3
+            sns = boto3.client("sns")
+            sns.subscribe(TopicArn=SNS_TOPIC_ARN, Protocol="email", Endpoint=email)
+            return {
+                "statusCode": 200, 
+                "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}, 
+                "body": json.dumps({"status": "success"})
+            }
+        return {
+            "statusCode": 400, 
+            "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}, 
+            "body": json.dumps({"error": "Missing email or SNS_TOPIC_ARN"})
+        }
+
+    target_lat = float(qps.get("lat", DEFAULT_TARGET["lat"]))
+    target_lon = float(qps.get("lon", DEFAULT_TARGET["lon"]))
+    target_name = qps.get("city", DEFAULT_TARGET["name"])
+
+    # 1. Fetch fire data (7 days for better demo visibility)
+    bbox = calculate_bounding_box(target_lat, target_lon)
+    fires = fetch_fires(FIRMS_MAP_KEY, bbox, days=5)
+    
+    def build_response(risk, clusters, advisory):
+        upwind_clusters = [c for c in clusters if c.get("is_upwind")]
+        snapshot = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "target": {"name": target_name, "lat": target_lat, "lon": target_lon},
+            "risk_level": risk,
+            "upwind_clusters": upwind_clusters,
+            "all_clusters": clusters,
+            "advisory": advisory,
+        }
+        if S3_BUCKET:
+            try:
+                write_snapshot(S3_BUCKET, risk, clusters, advisory)
+            except Exception as e:
+                logger.error(f"S3 upload failed: {e}")
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps(snapshot)
+        }
+
     if not fires:
         logger.info("No fires detected — writing Low-risk snapshot")
-        write_snapshot(S3_BUCKET, "Low", [], {"en": "No active fires detected.", "hi": "कोई सक्रिय आग नहीं पाई गई।"})
-        return {"statusCode": 200, "body": "No fires"}
+        advisory = {
+            "citizens": {"en": f"No active fires detected near {target_name}. Airspace clear.", "hi": "कोई सक्रिय आग नहीं पाई गई। वायुमार्ग साफ है।"},
+            "authorities": {"en": f"All air quality parameters stable. No immediate thermal anomalies near {target_name}.", "hi": "सभी वायु गुणवत्ता पैरामीटर स्थिर हैं। कोई विसंगति नहीं।"}
+        }
+        return build_response("Low", [], advisory)
 
     # 2. Cluster fires
     clusters = cluster_fires(fires)
@@ -340,20 +408,17 @@ def lambda_handler(event, context):
     clusters = fetch_wind_for_clusters(clusters)
 
     # 4. Score risk
-    risk, clusters = score_clusters(clusters)
+    risk, clusters = score_clusters(clusters, target_lat, target_lon)
 
     # 5. Generate advisory
-    advisory = generate_advisory(risk, clusters)
+    advisory = generate_advisory(risk, clusters, target_name)
 
-    # 6. Write snapshot to S3
-    write_snapshot(S3_BUCKET, risk, clusters, advisory)
-
-    # 7. Alert if High
+    # 6. Alert if High
     if risk == "High":
         send_sns_alert(SNS_TOPIC_ARN, risk, advisory)
 
     logger.info("Pipeline complete")
-    return {"statusCode": 200, "body": f"Risk: {risk}"}
+    return build_response(risk, clusters, advisory)
 
 if __name__ == "__main__":
     # Provides an easy way to run and test the script locally!
