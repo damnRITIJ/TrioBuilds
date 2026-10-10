@@ -6,14 +6,14 @@
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CONFIG = {
-  // Replace with your actual S3 static site URL after deployment
-  snapshotUrl: "https://triobuilds2.s3.ap-southeast-2.amazonaws.com/snapshot.json",
+  // Replace with your actual API Gateway URL after deployment
+  apiUrl: "http://127.0.0.1:3000/score",
 
   //ONLY USE snapshot.json FOR DEMO/LOCALHOST, LEAVE EMPTY WHEN DEPLOYED
   //   replayUrl: "../snapshot.json",    
   replayUrl: "",
 
-  delhi: { lat: 28.6139, lon: 77.2090 },
+  defaultTarget: { lat: 28.6139, lon: 77.2090, name: "Delhi NCR" },
   mapCenter: [29.5, 75.5],
   mapZoom: 7,
 };
@@ -34,8 +34,8 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 13,
 }).addTo(map);
 
-// Delhi marker
-L.circleMarker([CONFIG.delhi.lat, CONFIG.delhi.lon], {
+// Target marker (starts at Delhi)
+let targetMarker = L.circleMarker([CONFIG.defaultTarget.lat, CONFIG.defaultTarget.lon], {
   radius: 10,
   color: "#58a6ff",
   fillColor: "#58a6ff",
@@ -43,7 +43,9 @@ L.circleMarker([CONFIG.delhi.lat, CONFIG.delhi.lon], {
   weight: 2,
 })
   .addTo(map)
-  .bindPopup("<b>Delhi NCR</b><br>Target city");
+  .bindPopup(`<b>${CONFIG.defaultTarget.name}</b><br>Target location`);
+
+let currentTarget = { ...CONFIG.defaultTarget };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,10 +110,10 @@ function renderClusters(clusters) {
     marker.bindPopup(popup);
     clusterLayerGroup.addLayer(marker);
 
-    // Dashed line to Delhi for upwind clusters
+    // Dashed line to target for upwind clusters
     if (isUpwind) {
       const line = L.polyline(
-        [[c.lat, c.lon], [CONFIG.delhi.lat, CONFIG.delhi.lon]],
+        [[c.lat, c.lon], [currentTarget.lat, currentTarget.lon]],
         { color, weight: 1.5, dashArray: "6 6", opacity: 0.6 }
       );
       lineLayerGroup.addLayer(line);
@@ -165,9 +167,15 @@ window.setLang = function (lang) {
 
 // ── Data Fetch ────────────────────────────────────────────────────────────────
 
-async function loadSnapshot() {
-  // Prefer replay mode if configured
-  const url = CONFIG.replayUrl || CONFIG.snapshotUrl;
+async function loadRiskData(lat, lon, cityName) {
+  // Update UI State
+  currentTarget = { lat, lon, name: cityName };
+  targetMarker.setLatLng([lat, lon]);
+  targetMarker.bindPopup(`<b>${cityName}</b><br>Target location`).openPopup();
+  document.getElementById("risk-label").textContent = "Loading data from NASA & AWS...";
+
+  // Build API URL
+  let url = CONFIG.replayUrl || `${CONFIG.apiUrl}?lat=${lat}&lon=${lon}&city=${encodeURIComponent(cityName)}`;
   const isReplay = !!CONFIG.replayUrl;
 
   try {
@@ -185,14 +193,21 @@ async function loadSnapshot() {
       document.getElementById("replay-banner").style.display = "block";
     }
   } catch (err) {
-    console.error("Failed to load snapshot:", err);
+    console.error("Failed to load data:", err);
     document.getElementById("risk-label").textContent = "⚠ Could not load data";
     document.getElementById("risk-detail").textContent = err.message;
   }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-loadSnapshot();
+loadRiskData(CONFIG.defaultTarget.lat, CONFIG.defaultTarget.lon, CONFIG.defaultTarget.name);
 
-// Auto-refresh every 10 minutes
-setInterval(loadSnapshot, 10 * 60 * 1000);
+// Handle Map Clicks
+map.on("click", (e) => {
+  loadRiskData(e.latlng.lat, e.latlng.lng, "Selected Location");
+});
+
+// Auto-refresh every 10 minutes (for the current target)
+setInterval(() => {
+  loadRiskData(currentTarget.lat, currentTarget.lon, currentTarget.name);
+}, 10 * 60 * 1000);

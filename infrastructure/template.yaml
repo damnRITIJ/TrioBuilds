@@ -93,6 +93,11 @@ Resources:
                 - bedrock:InvokeModel
               Resource: "*"
       Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /score
+            Method: GET
         # Runs every 2 hours automatically
         ScheduledRun:
           Type: Schedule
@@ -104,6 +109,10 @@ Resources:
 
 # ── Outputs ────────────────────────────────────────────────────────────────────
 Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL for dynamic requests
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/score"
+
   LambdaFunctionArn:
     Description: ARN of the Lambda function
     Value: !GetAtt IngestAndScoreFunction.Arn

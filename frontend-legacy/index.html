@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stubble Burning Early Warning — Delhi NCR</title>
+  <meta name="description" content="Real-time early warning system for crop-residue smoke moving toward Delhi NCR. Powered by NASA FIRMS satellite data and AWS." />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Top Bar ─────────────────────────────────────────────── -->
+  <header id="topbar">
+    <div id="topbar-left">
+      <span id="logo">🔥 StubbleWatch</span>
+      <span id="subtitle">Delhi NCR Air Early Warning</span>
+    </div>
+    <div id="topbar-right">
+      <!-- Language toggle -->
+      <div id="lang-toggle">
+        <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" id="btn-hi" onclick="setLang('hi')">हि</button>
+      </div>
+      <!-- Last updated -->
+      <span id="last-updated">Loading…</span>
+    </div>
+  </header>
+
+  <!-- ── Risk Banner ────────────────────────────────────────── -->
+  <div id="risk-banner" class="risk-unknown">
+    <div id="risk-icon">⏳</div>
+    <div id="risk-text">
+      <div id="risk-label">Fetching latest data…</div>
+      <div id="risk-detail"></div>
+    </div>
+  </div>
+
+  <!-- ── Advisory Panel ────────────────────────────────────── -->
+  <div id="advisory-panel">
+    <p id="advisory-text">Loading advisory…</p>
+  </div>
+
+  <!-- ── Leaflet Map ────────────────────────────────────────── -->
+  <div id="map"></div>
+
+  <!-- ── Legend ────────────────────────────────────────────── -->
+  <div id="legend">
+    <div class="legend-title">Legend</div>
+    <div class="legend-item"><span class="dot dot-upwind"></span> Upwind fire cluster</div>
+    <div class="legend-item"><span class="dot dot-neutral"></span> Other fire cluster</div>
+    <div class="legend-item"><span class="dot dot-delhi"></span> Delhi (target)</div>
+  </div>
+
+  <!-- ── Replay Mode Banner ─────────────────────────────────── -->
+  <div id="replay-banner" style="display:none;">
+    📼 Replay Mode — Data from a high-fire day snapshot
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+</html>
