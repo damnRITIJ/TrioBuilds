@@ -5,6 +5,8 @@
 
 ---
 
+Live Deployed Link : https://main.d2rshd6w3xwz8n.amplifyapp.com
+
 ## Architecture
 
 ```
