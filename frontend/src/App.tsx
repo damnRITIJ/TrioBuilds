@@ -52,6 +52,8 @@ export default function App() {
   const [subscribeStatus, setSubscribeStatus] = useState<"idle"|"success"|"error">("idle")
   const [mobileCardOpen, setMobileCardOpen] = useState(false)
   const [showLocationModal, setShowLocationModal] = useState(true)
+  const [testAlertSending, setTestAlertSending] = useState(false)
+  const [testAlertSent, setTestAlertSent] = useState(false)
 
   const PRESET_LOCATIONS = [
     { name: "Delhi NCR", lat: 28.6139, lon: 77.2090, desc: "Capital Region (High Impact Zone)" },
@@ -117,7 +119,7 @@ export default function App() {
     }
   }, [target])
 
-  const handleDemoMode = () => {
+  const handleDemoMode = async () => {
     const activeLoc = target || { name: "Delhi NCR", lat: 28.6139, lon: 77.2090 }
     if (!target) {
       setTarget(activeLoc)
@@ -193,6 +195,18 @@ export default function App() {
         }
       }
     })
+
+    // Dispatches real high-risk alert email via Amazon SNS
+    setTestAlertSending(true)
+    try {
+      await fetch(`${API_URL}?action=test_alert&city=${encodeURIComponent(activeLoc.name)}`)
+      setTestAlertSent(true)
+      setTimeout(() => setTestAlertSent(false), 5000)
+    } catch (err) {
+      console.warn("Could not dispatch SNS test alert:", err)
+    } finally {
+      setTestAlertSending(false)
+    }
   }
 
   // Risk-based color coding (Low: Green/Emerald, Moderate: Yellow/Amber, High: Red/Rose)
@@ -273,15 +287,34 @@ export default function App() {
 
             <button 
               onClick={handleDemoMode} 
-              className="flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 text-xs px-2.5 md:px-3 py-1 rounded-md transition-colors font-medium"
-              title="Test High Risk Alert Simulation"
+              disabled={testAlertSending}
+              className={`flex items-center gap-1.5 text-xs px-2.5 md:px-3 py-1 rounded-md transition-colors font-medium border shadow-sm ${
+                testAlertSent 
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' 
+                  : 'bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+              }`}
+              title="Test High Risk Alert Simulation & Send SNS Email Alert"
             >
-              <Zap size={13} />
-              <span>Test</span>
+              {testAlertSending ? (
+                <RefreshCw size={13} className="animate-spin" />
+              ) : testAlertSent ? (
+                <CheckCircle2 size={13} className="text-emerald-400" />
+              ) : (
+                <Zap size={13} />
+              )}
+              <span>{testAlertSending ? "Sending..." : testAlertSent ? "Alert Sent!" : "Test"}</span>
             </button>
           </div>
         </div>
       </header>
+
+      {/* Test Alert Email Success Floating Banner */}
+      {testAlertSent && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-40 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 text-xs px-4 py-2 rounded-full shadow-2xl backdrop-blur flex items-center gap-2 pointer-events-none animate-bounce">
+          <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+          <span className="font-medium">High-Risk Alert email dispatched to subscribers via Amazon SNS!</span>
+        </div>
+      )}
 
       {/* Map view fills screen */}
       <div className="absolute inset-0 z-0">

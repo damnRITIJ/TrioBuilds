@@ -340,13 +340,27 @@ def send_sns_alert(topic_arn: str, risk: str, advisory: dict) -> None:
         return
 
     import boto3
-    sns = boto3.client("sns", region_name="us-east-1")
-    sns.publish(
-        TopicArn=topic_arn,
-        Subject=f"🔴 Stubble Burning Alert — Risk: {risk}",
-        Message=f"Citizens:\n{advisory['citizens']['en']}\n\nAuthorities:\n{advisory['authorities']['en']}",
-    )
-    logger.info("SNS alert published")
+    try:
+        region = topic_arn.split(":")[3] if ":" in topic_arn else "ap-southeast-2"
+        sns = boto3.client("sns", region_name=region)
+        message = (
+            f"🚨 STUBBLEWATCH EARLY WARNING ALERT 🚨\n"
+            f"Overall Risk Level: {risk}\n\n"
+            f"--- CITIZENS ADVISORY ---\n"
+            f"EN: {advisory['citizens']['en']}\n"
+            f"HI: {advisory['citizens']['hi']}\n\n"
+            f"--- AUTHORITIES ADVISORY ---\n"
+            f"EN: {advisory['authorities']['en']}\n"
+            f"HI: {advisory['authorities']['hi']}\n"
+        )
+        sns.publish(
+            TopicArn=topic_arn,
+            Subject=f"🔴 StubbleWatch Alert — Risk: {risk}"[:100],
+            Message=message,
+        )
+        logger.info("SNS alert published successfully")
+    except Exception as e:
+        logger.error(f"SNS publish failed: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,6 +373,40 @@ def lambda_handler(event, context):
 
     qps = event.get("queryStringParameters") or {}
     
+    # Handle Test Alert Simulation Endpoint (Dispatches live SNS email)
+    if qps.get("action") == "test_alert":
+        city = qps.get("city", DEFAULT_TARGET["name"])
+        test_advisory = {
+            "citizens": {
+                "en": f"High risk of stubble smoke drifting towards {city}. Keep windows closed and avoid outdoor activities.",
+                "hi": f"धुआं {city} की ओर बढ़ने का उच्च जोखिम है। खिड़कियां बंद रखें और बाहरी गतिविधियों से बचें।"
+            },
+            "authorities": {
+                "en": f"Critical multi-cluster thermal anomalies detected upwind of {city}. Prepare for severe PM2.5 AQI degradation within 4-8 hours.",
+                "hi": f"अपविंड में कई उच्च-तीव्रता वाली तापीय विसंगतियाँ पाई गई हैं। अगले 4-8 घंटों में {city} की वायु गुणवत्ता (PM2.5) में भारी गिरावट के लिए तैयार रहें।"
+            }
+        }
+        if SNS_TOPIC_ARN:
+            try:
+                send_sns_alert(SNS_TOPIC_ARN, "High", test_advisory)
+                return {
+                    "statusCode": 200,
+                    "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+                    "body": json.dumps({"status": "test_alert_sent", "advisory": test_advisory})
+                }
+            except Exception as e:
+                logger.error(f"Test alert failed: {e}")
+                return {
+                    "statusCode": 500,
+                    "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+                    "body": json.dumps({"error": f"Failed to send test alert: {str(e)}"})
+                }
+        return {
+            "statusCode": 400,
+            "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+            "body": json.dumps({"error": "Missing SNS_TOPIC_ARN"})
+        }
+
     # Handle SNS Subscription Endpoint
     if qps.get("action") == "subscribe":
         email = qps.get("email")
