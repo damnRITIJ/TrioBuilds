@@ -89,6 +89,8 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
+                - sns:Subscribe
+                - sns:Unsubscribe
               Resource: "*"
       Events:
         ApiEvent:

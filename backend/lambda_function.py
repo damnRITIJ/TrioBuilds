@@ -363,14 +363,22 @@ def lambda_handler(event, context):
     if qps.get("action") == "subscribe":
         email = qps.get("email")
         if email and SNS_TOPIC_ARN:
-            import boto3
-            sns = boto3.client("sns")
-            sns.subscribe(TopicArn=SNS_TOPIC_ARN, Protocol="email", Endpoint=email)
-            return {
-                "statusCode": 200, 
-                "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}, 
-                "body": json.dumps({"status": "success"})
-            }
+            try:
+                import boto3
+                sns = boto3.client("sns")
+                sns.subscribe(TopicArn=SNS_TOPIC_ARN, Protocol="email", Endpoint=email)
+                return {
+                    "statusCode": 200, 
+                    "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}, 
+                    "body": json.dumps({"status": "success"})
+                }
+            except Exception as e:
+                logger.error(f"SNS subscribe failed: {e}")
+                return {
+                    "statusCode": 500,
+                    "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+                    "body": json.dumps({"error": f"Failed to subscribe: {str(e)}"})
+                }
         return {
             "statusCode": 400, 
             "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}, 
