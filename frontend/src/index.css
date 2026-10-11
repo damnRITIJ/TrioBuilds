@@ -45,3 +45,29 @@
   }
 }
 
+/* Smooth transition for Leaflet controls */
+.leaflet-top.leaflet-left {
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* On desktop: When picking custom location (no advisory card), zoom stays at normal top-left.
+   When advisory card is present (.has-advisory), it shifts right next to the card (376px) */
+@media (min-width: 768px) {
+  .leaflet-top.leaflet-left {
+    left: 16px !important;
+    top: 76px !important;
+  }
+  .has-advisory .leaflet-top.leaflet-left {
+    left: 376px !important;
+    top: 76px !important;
+  }
+}
+
+/* On mobile, keep zoom control at top: 104px (16px below the 88px 2-line header) */
+@media (max-width: 767px) {
+  .leaflet-top.leaflet-left {
+    top: 104px !important;
+    left: 12px !important;
+  }
+}
+

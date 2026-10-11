@@ -41,5 +41,5 @@ class APIHandler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     port = 3000
-    print(f"Starting local API emulator on http://127.0.0.1:{port}/score")
-    HTTPServer(('127.0.0.1', port), APIHandler).serve_forever()
+    print(f"Starting local API emulator on port {port} (accessible on LAN and localhost)")
+    HTTPServer(('0.0.0.0', port), APIHandler).serve_forever()
