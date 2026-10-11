@@ -18,9 +18,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 })
 
-// Dynamically use current hostname so mobile devices accessing via LAN can connect to the backend API port 3000
+// Dynamically use current hostname in DEV so mobile devices on LAN can connect, or prod API Gateway in production
 const API_HOST = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'
-const API_URL = `http://${API_HOST}:3000/score`
+const API_URL = import.meta.env.DEV
+  ? `http://${API_HOST}:3000/score`
+  : "https://j80bcy6nwf.execute-api.ap-southeast-2.amazonaws.com/Prod/score"
 
 function MapClickHandler({ setTarget, onSelect }: { setTarget: (target: any) => void, onSelect?: () => void }) {
   useMapEvents({
