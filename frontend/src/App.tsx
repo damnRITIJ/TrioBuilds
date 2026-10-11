@@ -21,7 +21,7 @@ L.Icon.Default.mergeOptions({
 // Dynamically use current hostname in DEV so mobile devices on LAN can connect, or prod API Gateway in production
 const API_HOST = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'
 const API_URL = import.meta.env.DEV
-  ? `http://${API_HOST}:3000/score`
+  ? `http://${API_HOST}:3000/score` 
   : "https://j80bcy6nwf.execute-api.ap-southeast-2.amazonaws.com/Prod/score"
 
 function MapClickHandler({ setTarget, onSelect }: { setTarget: (target: any) => void, onSelect?: () => void }) {
