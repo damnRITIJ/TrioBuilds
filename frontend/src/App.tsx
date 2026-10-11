@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, useMapE
 import 'leaflet/dist/leaflet.css'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './components/ui/card'
 import { Badge } from './components/ui/badge'
-import { Flame, MapPin, AlertTriangle, ShieldCheck, Mail, RefreshCw, Zap, X, CheckCircle2 } from 'lucide-react'
+import { Flame, AlertTriangle, Mail, RefreshCw, Zap, X, CheckCircle2 } from 'lucide-react'
 
 // Fix leaflet marker icon issue in React
 import L from 'leaflet'

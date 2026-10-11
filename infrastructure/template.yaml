@@ -69,7 +69,6 @@ Resources:
   AlertTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: stubble-warning-alerts
       Subscription:
         - Protocol: email
           Endpoint: !Ref SnsSubscriberEmail
@@ -78,7 +77,6 @@ Resources:
   IngestAndScoreFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: stubble-ingest-and-score
       CodeUri: ../backend/
       Handler: lambda_function.lambda_handler
       Description: "Ingests FIRMS + wind data, scores risk, generates advisory, writes snapshot.json"
