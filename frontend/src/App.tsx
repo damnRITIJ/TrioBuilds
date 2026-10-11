@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, useMapE
 import 'leaflet/dist/leaflet.css'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './components/ui/card'
 import { Badge } from './components/ui/badge'
-import { Flame, AlertTriangle, Mail, RefreshCw, Zap, X, CheckCircle2 } from 'lucide-react'
+import { Flame, MapPin, AlertTriangle, Mail, RefreshCw, Zap, X, CheckCircle2 } from 'lucide-react'
 
 // Fix leaflet marker icon issue in React
 import L from 'leaflet'
@@ -140,8 +140,8 @@ export default function App() {
           is_upwind: true
         },
         {
-          lat: target.lat + 1.2,
-          lon: target.lon - 0.4,
+          lat: activeLoc.lat + 1.2,
+          lon: activeLoc.lon - 0.4,
           total_frp: 275.0,
           wind_speed_kmh: 14.0,
           wind_direction_deg: 160,
@@ -152,8 +152,8 @@ export default function App() {
       ],
       all_clusters: [
         {
-          lat: target.lat + 0.6,
-          lon: target.lon - 0.8,
+          lat: activeLoc.lat + 0.6,
+          lon: activeLoc.lon - 0.8,
           total_frp: 420.5,
           wind_speed_kmh: 18.5,
           wind_direction_deg: 135,
@@ -162,8 +162,8 @@ export default function App() {
           is_upwind: true
         },
         {
-          lat: target.lat + 1.2,
-          lon: target.lon - 0.4,
+          lat: activeLoc.lat + 1.2,
+          lon: activeLoc.lon - 0.4,
           total_frp: 275.0,
           wind_speed_kmh: 14.0,
           wind_direction_deg: 160,
@@ -172,8 +172,8 @@ export default function App() {
           is_upwind: true
         },
         {
-          lat: target.lat - 0.5,
-          lon: target.lon + 0.6,
+          lat: activeLoc.lat - 0.5,
+          lon: activeLoc.lon + 0.6,
           total_frp: 110.0,
           wind_speed_kmh: 10.0,
           wind_direction_deg: 45,
@@ -184,8 +184,8 @@ export default function App() {
       ],
       advisory: {
         citizens: {
-          en: `High risk of stubble smoke drifting towards ${target.name}. Keep windows closed and avoid outdoor activities.`,
-          hi: `धुआं ${target.name} की ओर बढ़ने का उच्च जोखिम है। खिड़कियां बंद रखें और बाहरी गतिविधियों से बचें।`
+          en: `High risk of stubble smoke drifting towards ${activeLoc.name}. Keep windows closed and avoid outdoor activities.`,
+          hi: `धुआं ${activeLoc.name} की ओर बढ़ने का उच्च जोखिम है। खिड़कियां बंद रखें और बाहरी गतिविधियों से बचें।`
         },
         authorities: {
           en: "Critical multi-cluster thermal anomalies detected upwind. Prepare for severe PM2.5 AQI degradation within 4-8 hours.",
